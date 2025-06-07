@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'rox007/samplenodeapp'
+        DOCKER_IMAGE = 'rox007/onlypatange'
         DOCKER_CREDENTIALS_ID = 'dockerhub-id'
     }
 
