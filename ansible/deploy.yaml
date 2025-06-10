@@ -1,0 +1,21 @@
+- name: Deploy to Kubernetes
+  hosts: kubernetes
+  become: yes
+  vars:
+    docker_image: "default/image:tag"
+  tasks:
+    - name: Template deployment.yaml
+      template:
+        src: ../k8s/deployment.yaml.j2
+        dest: /tmp/deployment.yaml
+
+    - name: Template service.yaml
+      template:
+        src: ../k8s/service.yaml.j2
+        dest: /tmp/service.yaml
+
+    - name: Apply Deployment
+      shell: kubectl apply -f /tmp/deployment.yaml
+
+    - name: Apply Service
+      shell: kubectl apply -f /tmp/service.yaml
