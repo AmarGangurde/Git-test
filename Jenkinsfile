@@ -51,10 +51,13 @@ pipeline {
 
         stage('Prepare Ansible LXC and Deploy') {
             steps {
-                sshagent(credentials: ['ansible-ssh-key']) {
+                sshagent(credentials: ['sshagent']) { // Ensure 'sshagent' is the correct ID for your SSH credential
                     sh """
-                        ssh -o StrictHostKeyChecking=no root@10.100.127.152 mkdir -p /root/my-project-repo
-                        ssh -o StrictHostKeyChecking=no root@10.100.127.152 \\
+                        # We are sending the entire script to the remote Ansible LXC via SSH's stdin
+                        ssh -o StrictHostKeyChecking=no root@10.100.127.152 "bash -s" << 'EOF'
+                            # Commands to run on the remote Ansible LXC (10.100.127.152)
+                            mkdir -p /root/my-project-repo
+
                             if [ -d /root/my-project-repo/.git ]; then
                                 echo 'Repository already exists on Ansible LXC, pulling latest changes...'
                                 cd /root/my-project-repo && git pull
@@ -62,10 +65,11 @@ pipeline {
                                 echo 'Cloning repository to Ansible LXC for the first time...'
                                 git clone https://github.com/AmarGangurde/Git-test.git /root/my-project-repo
                             fi
-                        ssh -o StrictHostKeyChecking=no root@10.100.127.152 \\
+
                             cd /root/my-project-repo && \\
                             ansible-playbook -i ansible/inventory.ini ansible/deploy.yaml \\
-                            --extra-vars 'docker_image=${FULL_DOCKER_IMAGE} k8s_manifests_path=/root/my-project-repo/k3s' # <--- THIS IS THE LINE!
+                            --extra-vars 'docker_image=${FULL_DOCKER_IMAGE} k8s_manifests_path=/root/my-project-repo/k3s'
+                        EOF
                     """
                 }
             }
