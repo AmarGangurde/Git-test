@@ -1,0 +1,15 @@
+# k3s/service.yaml.j2
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-app-service # Give your service a descriptive name
+  labels:
+    app: my-app # Match labels from your deployment
+spec:
+  selector:
+    app: my-app # Selects pods with this label (from your deployment)
+  ports:
+    - protocol: TCP
+      port: 80 # The port the service exposes
+      targetPort: 80 # The port your container listens on (from deployment.yaml.j2)
+  type: NodePort # Or LoadBalancer if you have a cloud provider, or ClusterIP for internal only
