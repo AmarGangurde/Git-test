@@ -28,7 +28,19 @@ pipeline {
                         docker.image("${DOCKER_IMAGE}").push('latest')
                     }
                 }
+            }	
+        stage('Deploy via Ansible') {
+            steps {
+                sshagent(['ansible-ssh-key']) {
+                    sh '''
+                        ssh -o StrictHostKeyChecking=no root@10.100.127.152 "
+                            cd /root/my-project-repo &&
+                            ansible-playbook -i ansible/inventory.ini ansible/deploy.yaml --extra-vars 'docker_image=$IMAGE_NAME:$TAG'
+                        "
+                    '''
+                }
             }
+        }
         }
     }
 }
