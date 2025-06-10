@@ -69,7 +69,7 @@ pipeline {
                             cd /root/my-project-repo && \\
                             ansible-playbook -i ansible/inventory.ini ansible/deploy.yaml \\
                             --extra-vars 'docker_image=${FULL_DOCKER_IMAGE} k8s_manifests_path=/root/my-project-repo/k3s'
-                        EOF
+EOF
                     """
                 }
             }
