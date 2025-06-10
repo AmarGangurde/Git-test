@@ -51,7 +51,7 @@ pipeline {
 
         stage('Prepare Ansible LXC and Deploy') {
             steps {
-                sshagent(credentials: ['ansible-lxc-ssh']) {
+                sshagent(credentials: ['sshagent']) {
                     sh """
                         ssh -o StrictHostKeyChecking=no root@10.100.127.152 mkdir -p /root/my-project-repo
                         ssh -o StrictHostKeyChecking=no root@10.100.127.152 \\
