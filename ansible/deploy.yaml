@@ -6,12 +6,12 @@
   tasks:
     - name: Template deployment.yaml
       template:
-        src: ../k8s/deployment.yaml.j2
+        src: ../k3s/deployment.yaml.j2
         dest: /tmp/deployment.yaml
 
     - name: Template service.yaml
       template:
-        src: ../k8s/service.yaml.j2
+        src: ../k3s/service.yaml.j2
         dest: /tmp/service.yaml
 
     - name: Apply Deployment
