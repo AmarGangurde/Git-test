@@ -51,7 +51,7 @@ pipeline {
 
         stage('Prepare Ansible LXC and Deploy') {
             steps {
-                sshagent(credentials: ['sshagent']) { // Ensure 'sshagent' is the correct ID for your SSH credential
+                sshagent(credentials: ['ansible-ssh-key']) { // Ensure 'sshagent' is the correct ID for your SSH credential
                     sh """
                         # We are sending the entire script to the remote Ansible LXC via SSH's stdin
                         ssh -o StrictHostKeyChecking=no root@10.100.127.152 "bash -s" << 'EOF'
