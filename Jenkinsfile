@@ -2,27 +2,34 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'rox007/samplenodeapp'
-        DOCKER_CREDENTIALS_ID = 'dockerhub-id'
-        IMAGE_TAG = 'latest'
-        ANSIBLE_REMOTE_USER = 'root'
-        ANSIBLE_REMOTE_HOST = '10.100.127.152'
-        ANSIBLE_REMOTE_REPO_PATH = '/root/my-project-repo' // This is where the repo will be cloned on the Ansible LXC
-        GIT_REPO_URL = 'https://github.com/AmarGangurde/Git-test.git' // Centralize your Git repo URL
+        // --- THIS PART IS CRUCIAL ---
+        NEW_DOCKER_IMAGE_TAG = "${env.GIT_COMMIT}" // Or "${env.BUILD_NUMBER}"
+        FULL_DOCKER_IMAGE = "rox007/samplenodeapp:${NEW_DOCKER_IMAGE_TAG}"
+        // -----------------------------
     }
 
     stages {
+        stage('Declarative: Checkout SCM') {
+            steps {
+                checkout scm
+            }
+        }
+
         stage('Clone Repository on Jenkins') {
             steps {
-                // This stage is still relevant if your Dockerfile or other build artifacts are in the repo
-                git "${GIT_REPO_URL}"
+                // Ensure this is cloning 'main' if that's your primary branch
+                git branch: 'main', url: 'https://github.com/AmarGangurde/Git-test.git'
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build("${DOCKER_IMAGE}:${IMAGE_TAG}")
+                    withEnv(["DOCKER_BUILDKIT=1"]) {
+                        // --- THIS PART IS CRUCIAL ---
+                        sh "docker build -t ${FULL_DOCKER_IMAGE} ."
+                        // -----------------------------
+                    }
                 }
             }
         }
@@ -30,8 +37,13 @@ pipeline {
         stage('Push to Docker Hub') {
             steps {
                 script {
-                    docker.withRegistry('https://index.docker.io/v1/', "${DOCKER_CREDENTIALS_ID}") {
-                        docker.image("${DOCKER_IMAGE}:${IMAGE_TAG}").push()
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                        withEnv(["DOCKER_CLI_PASSWORD=${DOCKER_PASSWORD}"]) {
+                            sh 'echo "$DOCKER_CLI_PASSWORD" | docker login -u ${DOCKER_USERNAME} --password-stdin'
+                        }
+                        // --- THIS PART IS CRUCIAL ---
+                        sh "docker push ${FULL_DOCKER_IMAGE}"
+                        // -----------------------------
                     }
                 }
             }
@@ -39,28 +51,21 @@ pipeline {
 
         stage('Prepare Ansible LXC and Deploy') {
             steps {
-                sshagent(['ansible-ssh-key']) { // This Jenkins credential provides the SSH key for root@10.100.127.152
+                sshagent(credentials: ['ansible-lxc-ssh']) {
                     sh """
-                        # 1. Ensure the target directory exists on the Ansible LXC
-                        ssh -o StrictHostKeyChecking=no ${ANSIBLE_REMOTE_USER}@${ANSIBLE_REMOTE_HOST} "mkdir -p ${ANSIBLE_REMOTE_REPO_PATH}"
-
-                        # 2. Clone/Update the repository on the Ansible LXC
-                        ssh -o StrictHostKeyChecking=no ${ANSIBLE_REMOTE_USER}@${ANSIBLE_REMOTE_HOST} "
-                            if [ -d ${ANSIBLE_REMOTE_REPO_PATH}/.git ]; then
+                        ssh -o StrictHostKeyChecking=no root@10.100.127.152 mkdir -p /root/my-project-repo
+                        ssh -o StrictHostKeyChecking=no root@10.100.127.152 \\
+                            if [ -d /root/my-project-repo/.git ]; then
                                 echo 'Repository already exists on Ansible LXC, pulling latest changes...'
-                                cd ${ANSIBLE_REMOTE_REPO_PATH} && git pull
+                                cd /root/my-project-repo && git pull
                             else
                                 echo 'Cloning repository to Ansible LXC for the first time...'
-                                git clone ${GIT_REPO_URL} ${ANSIBLE_REMOTE_REPO_PATH}
+                                git clone https://github.com/AmarGangurde/Git-test.git /root/my-project-repo
                             fi
-                        "
-
-                        # 3. Now, execute the Ansible playbook from the cloned repository on the Ansible LXC
-                        ssh -o StrictHostKeyChecking=no ${ANSIBLE_REMOTE_USER}@${ANSIBLE_REMOTE_HOST} "
-                            cd ${ANSIBLE_REMOTE_REPO_PATH} &&
+                        ssh -o StrictHostKeyChecking=no root@10.100.127.152 \\
+                            cd /root/my-project-repo && \\
                             ansible-playbook -i ansible/inventory.ini ansible/deploy.yaml \\
-                            --extra-vars 'docker_image=${DOCKER_IMAGE}:${IMAGE_TAG} k8s_manifests_path=${ANSIBLE_REMOTE_REPO_PATH}/k3s'
-                        "
+                            --extra-vars 'docker_image=${FULL_DOCKER_IMAGE} k8s_manifests_path=/root/my-project-repo/k3s' # <--- THIS IS THE LINE!
                     """
                 }
             }
