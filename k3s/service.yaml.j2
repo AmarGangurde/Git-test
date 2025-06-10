@@ -11,5 +11,5 @@ spec:
   ports:
     - protocol: TCP
       port: 80 # The port the service exposes
-      targetPort: 80 # The port your container listens on (from deployment.yaml.j2)
+      targetPort: 8000 # The port your container listens on (from deployment.yaml.j2)
   type: NodePort # Or LoadBalancer if you have a cloud provider, or ClusterIP for internal only
